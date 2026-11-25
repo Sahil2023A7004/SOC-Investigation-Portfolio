@@ -21,15 +21,14 @@
 ### 1. Filtering for Remote Access (Event ID `4624`)
 Filtered the saved Security event log for Event ID `4624` and pivoted on source IP `10.10.53.248` to locate remote interactive logins.
 
-![Filtering Security.evtx for Event ID 4624](images/01-evtx-filter-4624.png)
+<img width="1016" height="867" alt="1" src="https://github.com/user-attachments/assets/ce46f472-cbe8-4c13-a854-12bc4227c3a5" />)
 
 * **Timestamp:** `2025-05-17 22:53:41`
 * **Target Host / Account:** `THM-PC\Administrator` (`TargetUserSid`: `S-1-5-21-1966530601-3185510710604624-500`)
 * **Logon Type:** `10` (RemoteInteractive / RDP via `User32`)
 * **Target Logon ID:** `0x183c36d`
 
-![Event ID 4624 showing RDP LogonType 10 as Administrator](images/02-rdp-logon-4624.jpg)
-
+<img width="1012" height="757" alt="3" src="https://github.com/user-attachments/assets/f5ddadd1-fed0-4e12-99e5-bfa404018ac3" />
 ### 2. Backdoor Account Creation (Event ID `4720`)
 77 seconds after the RDP login, a new local user account was created to maintain access:
 
@@ -37,15 +36,13 @@ Filtered the saved Security event log for Event ID `4624` and pivoted on source 
 * **Created Account (`TargetUserName`):** `svc_sysrestore`
 * **MITRE ATT&CK:** `T1136.001` (Create Account: Local Account)
 
-![Event ID 4720 showing svc_sysrestore account creation](images/03-user-created-4720.png)
-
+<img width="1025" height="517" alt="4" src="https://github.com/user-attachments/assets/adb21783-a79d-47bd-b0f7-01f60dbbda5a" />
 ### 3. Privilege Escalation via Local Group Membership (Event ID `4732`)
 Immediately after creation, three `4732` events fired (`22:54:59`, `22:55:12`, `22:55:24`), adding the newly created account into privileged local groups including **`BUILTIN\Backup Operators`** (which permits reading sensitive files such as SAM/SYSTEM hives and bypassing standard ACLs).
 
 * **MITRE ATT&CK:** `T1098` (Account Manipulation)
 
-![Event ID 4732 adding account to Backup Operators](images/04-group-added-4732.png)
-
+<img width="1025" height="531" alt="5" src="https://github.com/user-attachments/assets/7ff2ddb6-712d-48a5-858a-24225557057b" />
 ---
 
 ## Investigation 2: Malware Delivery, Startup Persistence & C2 Beaconing 
@@ -63,8 +60,7 @@ Even without proxy logs, Sysmon Event ID `15` captured the NTFS Alternate Data S
 * **MD5:** `B721ACDDF7B64B7D1ABEF3CB4F6A34A9`
 * **SHA256:** `B23ECDF759CD1488EBB798F0A6D6F5E70D1B518D4A46731C7681E4961923415A`
 
-![Sysmon Event 15 showing Chrome Zone.Identifier and HostUrl](images/05-sysmon-15-motw-download.jpg)
-
+<img width="585" height="557" alt="7" src="https://github.com/user-attachments/assets/c1a2dcef-63b7-47df-8caa-3065d73dcd3e" />
 ### 2. Startup Folder Persistence (Sysmon Event ID `11` — FileCreate)
 Roughly 83 seconds after download, `ckjg.exe` (`PID 1460`) executed and wrote a persistence file directly into the user's Windows Startup directory:
 
@@ -73,8 +69,7 @@ Roughly 83 seconds after download, `ckjg.exe` (`PID 1460`) executed and wrote a 
 * **Dropped Path:** `C:\Users\sarah.miller\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\DeleteApp...`
 * **MITRE ATT&CK:** `T1547.001` (Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder; logged under legacy Sysmon rule `T1023`)
 
-![Sysmon Event 11 showing Startup folder persistence drop](images/06-sysmon-11-startup-persistence.png)
-
+<img width="576" height="610" alt="8" src="https://github.com/user-attachments/assets/ca7c8979-b72f-47ee-a21a-3072d4d73ef3" />
 ### 3. Command & Control DNS Lookup (Sysmon Event ID `22` — DNS Query)
 11 seconds after establishing persistence, the same process resolved an external DGA-style domain:
 
@@ -83,13 +78,11 @@ Roughly 83 seconds after download, `ckjg.exe` (`PID 1460`) executed and wrote a 
 * **Queried Domain:** `hkfasfsafg[.]click`
 * **Resolved IP:** `193[.]46[.]217[.]4` (`::ffff:193.46.217.4`)
 
-![Sysmon Event 22 showing DNS query to C2 domain](images/07-sysmon-22-c2-dns.png)
-
+<img width="772" height="362" alt="9" src="https://github.com/user-attachments/assets/302fab7c-4b93-4b8e-bc7d-51bb7e53109e" />
 ### 4. Outbound Network Connection (Sysmon Event ID `3` — NetworkConnect)
 Confirmed active outbound network telemetry from the exact same `ProcessGuid` (`{c5d2b969-060b-682a-490c-000000001701}`) immediately following DNS resolution.
 
-![Sysmon Event 3 confirming outbound connection from ckjg.exe](images/08-sysmon-03-network-conn.png)
-
+<img width="772" height="387" alt="6" src="https://github.com/user-attachments/assets/c95bb732-b63e-43b6-bbbb-237a1291d54d" />
 ---
 
 ## Extracted IOCs (Defanged)
