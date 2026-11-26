@@ -19,24 +19,29 @@
 OpenSSH logs successful logins as `Accepted password` or `Accepted publickey` rather than the word `login`, and logs failed attempts with a lowercase `p` (`Failed password`). Using `grep -i` prevents case-sensitivity blind spots during triage.
 
 <img width="1072" height="147" alt="1" src="https://github.com/user-attachments/assets/f61a34da-a821-40c2-ba56-39ccd51b703f" />
+
 ### Filtering Failed Logins & Validating Alerts
-Filtering `/var/log/auth.log` for `Failed` exposed automated brute-force attempts targeting `root` and non-existent usernames (`sol`) from external source IPs (`197[.]39[.]195[.]136` and `193[.]32[.]162[.]145`).
+Filtering "/var/log/auth.log" for "Failed" exposed automated brute-force attempts targeting "root" and non-existent usernames (`sol`) from external source IPs ("197.39.195.136" and "193.32.162.145").
 
 <img width="1076" height="195" alt="2" src="https://github.com/user-attachments/assets/b0765da9-4f55-4683-bd68-c4ff03df03f6" />
+
 To distinguish a true brute-force alert from a legitimate user mistyping a password, check:
+
 * **Attempt frequency:** Rapid bursts within seconds indicate automated tooling.
+  
 * **Source IP reputation:** Check external IPs against AbuseIPDB, VirusTotal, Cisco Talos Intelligence, and GreyNoise.
-* **Username validity & login timing:** Flag attempts against `root`, invalid usernames, or off-hours activity.
+  
+* **Username validity & login timing:** Flag attempts against "root", invalid usernames, or off-hours activity.
 
 ### Confirming Breach Impact (`Accepted` vs. `passwd`)
-Pivoting on `Accepted` confirmed a successful password login for `root` from external IP `91[.]224[.]92[.]79` (`sshd[16876]`). Note that `Accepted password` confirms authentication via password rather than a password reset—checking for post-compromise password modifications requires searching for `passwd`.
+Pivoting on `Accepted` confirmed a successful password login for `root` from external IP "91.224.92.97" ("sshd[16876]"). Note that `Accepted password` confirms authentication via password rather than a password reset—checking for post-compromise password modifications requires searching for "passwd".
 
 <img width="1072" height="62" alt="3" src="https://github.com/user-attachments/assets/ad0755e9-59ea-462c-a62b-f238fc274302" />
----
+
 
 ## 2. Web Server Access Log Analysis (`/var/log/nginx/access.log`)
 
-Reviewing `/var/log/nginx/access.log` revealed normal `ping` health-check requests transitioning into OS command injection from `10[.]14[.]105[.]255`:
+Reviewing `/var/log/nginx/access.log` revealed normal `ping` health-check requests transitioning into OS command injection from "10.14.14.255":
 
 1. **Probe & Command Separator Discovery:** `GET /ping?host=whoami` returned HTTP `500`, whereas `GET /ping?host=;whoami` returned HTTP `200`, confirming shell command execution via `;`.
 2. **Host Discovery & Source Code Read:** The attacker enumerated the working directory and read the application source via `;ls`, `;pwd`, and `;cat+/opt/trypingme/main.py` (all returning HTTP `200`).
@@ -54,18 +59,20 @@ Application logs alone rarely capture full post-exploitation activity. Using `au
 2. Pivoted downward using `ausearch -i --ppid 1018` to list all sibling commands spawned by the vulnerable web app process (`ping -c 2` followed by `whoami`).
 
 <img width="1077" height="687" alt="5" src="https://github.com/user-attachments/assets/83a22146-9a2e-4ecc-8f0e-82d7feb03d4b" />
+
 ### Confirming Full Command Arguments (`PROCTITLE` & `EXECVE`)
 Running `ausearch -i -x ping` confirmed how user input was passed unsanitized into `ping -c 2 hello` and `ping -c 2 whoami` from `/opt/trypingme` across `ppid=1014`, `1016`, and `1018`.
 
 <img width="1080" height="766" alt="6" src="https://github.com/user-attachments/assets/0a8fb35e-ea1e-4148-a67d-86e33fba003b" />
+
 Finally, inspecting the `EXECVE` record at `20:11:16` confirmed `/bin/sh -c` spawning the Python reverse shell payload (`python3 -c 'import socket,subprocess,os;...'`) out of `/opt/trypingme`.
 
 <img width="1070" height="152" alt="7" src="https://github.com/user-attachments/assets/c400f567-bc04-43ea-a549-ee94b2dc5fc5" />
----
+
 
 ## Extracted IOCs (Defanged)
 
 * **Compromised Application Directory:** `/opt/trypingme/main.py`
-* **External SSH Brute-Force IPs:** `197[.]39[.]195[.]136`, `193[.]32[.]162[.]145`
-* **Confirmed Root SSH Login IP:** `91[.]224[.]92[.]79`
-* **Web Command Injection / Reverse Shell IP:** `10[.]14[.]105[.]255` (Port `1337`)
+* **External SSH Brute-Force IPs:** `197.39.195.136, 193.32.162.145`
+* **Confirmed Root SSH Login IP:** `91.224.92.79`
+* **Web Command Injection / Reverse Shell IP:** `10.14.105.255` (Port `1337`)
